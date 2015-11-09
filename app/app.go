@@ -2,36 +2,44 @@ package app
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 )
 
 const DEFAULT_CONFIG_PATH = "~/.envyconfig.json"
 
 type val struct {
-	Name       string
-	Workspaces []string
-	Value      string
+	Name      string
+	Workspace string
+	Value     string
 }
 
 type App struct {
 	DefaultWorkspace string   `json:"defaultWorkspace"`
 	Workspaces       []string `json:"workspaces,omitempty"`
 	Vals             []val    `json:"vals,omitempty"`
+	path             string
 }
 
-func NewApp(path string) App {
+func NewApp(path string) (App, error) {
 	app := App{}
+	app.path = path
+
+	var err error
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		app.Save(path)
-	} else {
-		app.Load(path)
+		err = app.Save()
+	} else if os.IsExist(err) {
+		err = app.Load()
 	}
-	return app
+	return app, err
 }
 
-func (a *App) Load(path string) error {
+func (a *App) Load() error {
+	path := a.path
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
@@ -43,7 +51,8 @@ func (a *App) Load(path string) error {
 	return nil
 }
 
-func (a *App) Save(path string) error {
+func (a *App) Save() error {
+	path := a.path
 	contents, err := json.Marshal(&a)
 	if err != nil {
 		return err
@@ -52,6 +61,75 @@ func (a *App) Save(path string) error {
 	err = ioutil.WriteFile(path, []byte(contents), 0644)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (a *App) AddWorkspace(name string) error {
+	if err := validateWorkspaceName(name); err != nil {
+		return err
+	} else if err := a.validateWorkspaceDoesNotExist(name); err != nil {
+		return err
+	}
+	if a.Workspaces == nil {
+		a.Workspaces = []string{name}
+	} else {
+		a.Workspaces = append(a.Workspaces, name)
+	}
+	return nil
+}
+
+func (a *App) RemoveWorkspace(name string) error {
+	index, err := a.validateWorkspaceExists(name)
+
+	if err != nil {
+		return err
+	}
+
+	a.Workspaces = append(a.Workspaces[:index], a.Workspaces[index+1:]...)
+	return nil
+}
+
+func (a *App) hasWorkspace(name string) (bool, int) {
+	if a.Workspaces == nil || len(a.Workspaces) == 0 {
+		return false, -1
+	}
+	for i, workspace := range a.Workspaces {
+		if workspace == name {
+			return true, i
+		}
+	}
+	return false, -1
+}
+
+func validateWorkspaceName(name string) error {
+	if len(name) == 0 {
+		errMsg := fmt.Sprintf("Missing name argument for workspace")
+		return errors.New(errMsg)
+	}
+	valid, _ := regexp.Match("^\\w+$", []byte(name))
+	if !valid {
+		errMsg := fmt.Sprintf("'%s' is not a valid workspace name")
+		return errors.New(errMsg)
+	} else {
+		return nil
+	}
+}
+
+func (a *App) validateWorkspaceExists(name string) (int, error) {
+	present, index := a.hasWorkspace(name)
+
+	if !present {
+		errMsg := fmt.Sprintf("Workspace '%s' does not exist", name)
+		return -1, errors.New(errMsg)
+	}
+	return index, nil
+}
+
+func (a *App) validateWorkspaceDoesNotExist(name string) error {
+	if present, _ := a.hasWorkspace(name); present {
+		errMsg := fmt.Sprintf("Workspace '%s' already exists", name)
+		return errors.New(errMsg)
 	}
 	return nil
 }
