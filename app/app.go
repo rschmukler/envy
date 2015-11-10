@@ -32,7 +32,7 @@ func NewApp(path string) (App, error) {
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = app.Save()
-	} else if os.IsExist(err) {
+	} else {
 		err = app.Load()
 	}
 	return app, err
@@ -68,7 +68,7 @@ func (a *App) Save() error {
 func (a *App) AddWorkspace(name string) error {
 	if err := validateWorkspaceName(name); err != nil {
 		return err
-	} else if err := a.validateWorkspaceDoesNotExist(name); err != nil {
+	} else if err = a.validateWorkspaceDoesNotExist(name); err != nil {
 		return err
 	}
 	if a.Workspaces == nil {

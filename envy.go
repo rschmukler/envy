@@ -5,6 +5,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/rschmukler/envy/app"
 	"github.com/rschmukler/envy/commands"
+	"os"
 )
 
 var AppHelpTemplate = `Usage: {{.Name}} {{if .Flags}}[OPTIONS] {{end}}COMMAND [arg...]
@@ -50,5 +51,5 @@ func main() {
 	}
 
 	prog.Commands = commands.Commands
-	prog.RunAndExitOnError()
+	prog.Run(os.Args)
 }

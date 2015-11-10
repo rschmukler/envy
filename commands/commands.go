@@ -76,7 +76,7 @@ func bootstrap(command func(*appCtx) error) func(context *cli.Context) {
 		}
 
 		if err := command(&appCtx{c, appl}); err != nil {
-			fmt.Printf(err.Error())
+			fmt.Printf("Error: %s\n", err.Error())
 		}
 	}
 }
